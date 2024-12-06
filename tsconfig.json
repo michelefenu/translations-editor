@@ -14,7 +14,6 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {},
-    "useDefineForClassFields": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
