@@ -1,3 +1,4 @@
+/* eslint-disable */
 export default {
   displayName: 'translations-editor',
   preset: './jest.preset.js',

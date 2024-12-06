@@ -1,7 +1,6 @@
 {
   "name": "translations-editor",
   "$schema": "node_modules/nx/schemas/project-schema.json",
-  "includedScripts": [],
   "projectType": "application",
   "prefix": "app",
   "sourceRoot": "./src",
@@ -15,13 +14,8 @@
         "index": "./src/index.html",
         "browser": "./src/main.ts",
         "polyfills": ["zone.js"],
-        "tsConfig": "tsconfig.app.json",
-        "assets": [
-          {
-            "glob": "**/*",
-            "input": "public"
-          }
-        ],
+        "tsConfig": "./tsconfig.app.json",
+        "assets": ["./src/favicon.ico", "./src/assets"],
         "styles": ["./src/styles.css"],
         "scripts": []
       },
@@ -35,8 +29,8 @@
             },
             {
               "type": "anyComponentStyle",
-              "maximumWarning": "4kb",
-              "maximumError": "8kb"
+              "maximumWarning": "2kb",
+              "maximumError": "4kb"
             }
           ],
           "outputHashing": "all"
@@ -78,15 +72,6 @@
       "outputs": ["{workspaceRoot}/coverage/{projectName}"],
       "options": {
         "jestConfig": "jest.config.ts"
-      }
-    },
-    "serve-static": {
-      "executor": "@nx/web:file-server",
-      "options": {
-        "buildTarget": "translations-editor:build",
-        "port": 4200,
-        "staticFilePath": "dist/translations-editor/browser",
-        "spa": true
       }
     }
   }
