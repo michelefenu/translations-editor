@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, OnInit, signal } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
-import { CommonModule } from '@angular/common';
+import { CommonModule, UpperCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectButtonModule } from 'primeng/selectbutton';
@@ -21,43 +21,64 @@ interface TranslationFile {
     SelectButtonModule,
     AccordionModule,
     BadgeModule,
+    UpperCasePipe
   ],
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
-      class="drag-drop-area"
+      class="drag-drop-area h-[120px] flex items-center justify-center"
+      [class.drag-over]="isDragOver"
       (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
       (drop)="onDrop($event)"
     >
       Drop translation files here
     </div>
 
-    <div class="flex gap-2 items-center my-4">
-      <label for="language">Default Language:</label>
-      <p-selectbutton
-        id="language"
-      name="language"
-      [options]="languageOptions()"
-      [(ngModel)]="defaultLanguage"
-      optionLabel="label"
-        optionValue="value"
-        aria-labelledby="basic"
-      />
+    <div class="flex gap-2 items-center my-4 justify-between">
+      <div class="flex gap-2 items-center">
+        @if (languageOptions.length > 0) {
+        <label for="language">Default Language:</label>
+        <p-selectbutton
+          id="language"
+          name="language"
+          [options]="languageOptions"
+          [(ngModel)]="defaultLanguage"
+          optionLabel="label"
+          optionValue="value"
+          aria-labelledby="basic"
+        />
+        } @else {
+        <div>No files uploaded</div>
+        }
+      </div>
+      <div>
+        <button pButton type="button" (click)="save()" class="me-2">EXPORT</button>
+        <button pButton type="button" (click)="reset()" severity="danger">RESET</button>
+      </div>
     </div>
-
     @for (label of objectToKeyValueArray(calculateLabels(translationFiles()));
     track label[0]; let i = $index) {
     <p-accordion [value]="i">
       @defer(on viewport) {
       <p-accordion-panel [value]="label[0]">
         <p-accordion-header>
-          <div class="flex flex-col">
-            <div class="text-gray-900 flex items-center justify-between">
-              <div>{{ getTranslationModel(defaultLanguage, label[0]) }}</div>
-              <div >
+          <div class="flex flex-col w-full">
+            <div class="text-gray-900 flex items-center justify-between pe-10">
+              <div>{{ getTranslationModel(defaultLanguage, label[0])  }}</div>
+              <div class="mt-6">
                 @for (language of label[1]; track language) {
-                  <p-badge [value]="language" severity="success" class="m-1" [severity]="getTranslationModel(language, label[0]) ? 'success' : 'danger'" />
+                <p-badge
+                  [value]="language | uppercase"
+                  severity="success"
+                  class="m-1"
+                  [severity]="
+                    getTranslationModel(language, label[0])
+                      ? 'success'
+                      : 'danger'
+                  "
+                />
                 }
               </div>
             </div>
@@ -70,12 +91,15 @@ interface TranslationFile {
         @for (language of label[1]; track language) {
         <p-accordion-content>
           @defer(on viewport) {
-          <div>
-            {{ language }}:
+          <div class="flex items-center">
+            <div class="w-10">
+              <p-badge [value]="language | uppercase" class="me-2" [severity]="getTranslationModel(language, label[0]) ? 'success' : 'danger'" />
+            </div>
             <input
               pInputText
               type="text"
               #f
+              class="w-[500px]"
               [value]="getTranslationModel(language, label[0])"
               (change)="updateTranslationModel(language, label[0], f.value)"
             />
@@ -91,9 +115,6 @@ interface TranslationFile {
       }
     </p-accordion>
     }
-    <div>
-      <button (click)="save()">Save</button>
-    </div>
   `,
   styles: [
     `
@@ -101,16 +122,37 @@ interface TranslationFile {
         border: 2px dashed #ccc;
         padding: 20px;
         text-align: center;
+        transition: background-color 0.3s;
+      }
+      .drag-drop-area.drag-over {
+        background-color: #f0f0f0; /* Change to desired color */
       }
     `,
   ],
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   translationFiles = signal<TranslationFile[]>([]);
   labels = signal<{ language: string; label: string }[]>([]);
 
   defaultLanguage = 'en';
-  languageOptions = signal<{ label: string; value: string }[]>([]);
+  languageOptions: { label: string; value: string }[] = [];
+
+  isDragOver = false;
+
+  constructor() {
+    effect(() => {
+      localStorage.setItem('translationFiles', JSON.stringify(this.translationFiles()));
+      this.languageOptions = this.translationFiles().map((file) => ({ label: file.name, value: file.name }));
+      console.log(this.translationFiles());
+    });
+  }
+
+  ngOnInit() {
+    const files = localStorage.getItem('translationFiles');
+    if (files) {
+      this.translationFiles.set(JSON.parse(files));
+    }
+  }
 
   uploadFile(event: any) {
     console.log('Loading files');
@@ -132,10 +174,7 @@ export class AppComponent {
             )
           );
         } else {
-          this.languageOptions.update((options) => [
-            ...options,
-            { label: fileName, value: fileName },
-          ]);
+          this.languageOptions = [...this.languageOptions, { label: fileName, value: fileName }];
           this.translationFiles.update((files) => [
             ...files,
             {
@@ -150,14 +189,21 @@ export class AppComponent {
       reader.readAsText(file);
     }
     console.log('Files loaded');
+
   }
 
   onDragOver(event: DragEvent) {
     event.preventDefault();
+    this.isDragOver = true;
+  }
+
+  onDragLeave(event: DragEvent) {
+    this.isDragOver = false;
   }
 
   onDrop(event: DragEvent) {
     event.preventDefault();
+    this.isDragOver = false;
     if (event.dataTransfer?.files.length) {
       this.uploadFile({ target: { files: event.dataTransfer.files } });
     }
@@ -241,6 +287,22 @@ export class AppComponent {
   }
 
   save() {
-    console.log(this.translationFiles());
+    this.translationFiles().forEach((file) => {
+      this.download(JSON.stringify(file.data), file.name, 'application/json');
+    });
   }
+
+  reset() {
+    if (window.confirm('Are you sure you want to reset?')) {
+      this.translationFiles.set([]);
+    }
+  }
+
+  download(content: string, fileName: string, contentType: string) {
+    var a = document.createElement("a");
+    var file = new Blob([content], {type: contentType});
+    a.href = URL.createObjectURL(file);
+    a.download = fileName;
+    a.click();
+}
 }
