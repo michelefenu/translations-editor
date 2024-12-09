@@ -3,6 +3,9 @@ import { ButtonModule } from 'primeng/button';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { InputTextModule } from 'primeng/inputtext';
+import { SelectButtonModule } from 'primeng/selectbutton';
+import { AccordionModule } from 'primeng/accordion';
+import { BadgeModule } from 'primeng/badge';
 interface TranslationFile {
   name: string;
   data: Record<string, string>;
@@ -10,7 +13,15 @@ interface TranslationFile {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ButtonModule, InputTextModule, FormsModule],
+  imports: [
+    CommonModule,
+    ButtonModule,
+    InputTextModule,
+    FormsModule,
+    SelectButtonModule,
+    AccordionModule,
+    BadgeModule,
+  ],
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -22,26 +33,67 @@ interface TranslationFile {
       Drop translation files here
     </div>
 
-    @for (file of translationFiles(); track file.name) {
-    <div>
-      {{ file.name }}
+    <div class="flex gap-2 items-center my-4">
+      <label for="language">Default Language:</label>
+      <p-selectbutton
+        id="language"
+      name="language"
+      [options]="languageOptions()"
+      [(ngModel)]="defaultLanguage"
+      optionLabel="label"
+        optionValue="value"
+        aria-labelledby="basic"
+      />
     </div>
-    }
 
-    @for (label of objectToKeyValueArray(calculateLabels(translationFiles())); track label[0]) {
-      <div>
-        {{ label[0] }}: {{ label[1] }}
-        @for (language of label[1]; track language) {
-          @defer {
-            <div>
-              <input pInputText type="text" #f [value]="getTranslationModel(language, label[0])" (change)="updateTranslationModel(language, label[0], f.value)" />
+    @for (label of objectToKeyValueArray(calculateLabels(translationFiles()));
+    track label[0]; let i = $index) {
+    <p-accordion [value]="i">
+      @defer(on viewport) {
+      <p-accordion-panel [value]="label[0]">
+        <p-accordion-header>
+          <div class="flex flex-col">
+            <div class="text-gray-900 flex items-center justify-between">
+              <div>{{ getTranslationModel(defaultLanguage, label[0]) }}</div>
+              <div >
+                @for (language of label[1]; track language) {
+                  <p-badge [value]="language" severity="success" class="m-1" [severity]="getTranslationModel(language, label[0]) ? 'success' : 'danger'" />
+                }
+              </div>
             </div>
-          }
-        }
-      </div>
-    }
+            <div>
+              <small class="text-gray-500">{{ label[0] }}</small>
+            </div>
+          </div>
+        </p-accordion-header>
 
-    <button (click)="save()">Save</button>
+        @for (language of label[1]; track language) {
+        <p-accordion-content>
+          @defer(on viewport) {
+          <div>
+            {{ language }}:
+            <input
+              pInputText
+              type="text"
+              #f
+              [value]="getTranslationModel(language, label[0])"
+              (change)="updateTranslationModel(language, label[0], f.value)"
+            />
+          </div>
+          } @placeholder {
+          <div>Loading...</div>
+          }
+        </p-accordion-content>
+        }
+      </p-accordion-panel>
+      } @placeholder {
+      <div>Loading...</div>
+      }
+    </p-accordion>
+    }
+    <div>
+      <button (click)="save()">Save</button>
+    </div>
   `,
   styles: [
     `
@@ -57,6 +109,9 @@ export class AppComponent {
   translationFiles = signal<TranslationFile[]>([]);
   labels = signal<{ language: string; label: string }[]>([]);
 
+  defaultLanguage = 'en';
+  languageOptions = signal<{ label: string; value: string }[]>([]);
+
   uploadFile(event: any) {
     console.log('Loading files');
     for (const file of event.target.files) {
@@ -68,18 +123,26 @@ export class AppComponent {
             files.map((f) =>
               f.name === fileName
                 ? {
-                  ...f,
-                  data: this.flattenObject(JSON.parse(reader.result?.toString() ?? '{}')),
-                }
-                : f,
+                    ...f,
+                    data: this.flattenObject(
+                      JSON.parse(reader.result?.toString() ?? '{}')
+                    ),
+                  }
+                : f
             )
           );
         } else {
+          this.languageOptions.update((options) => [
+            ...options,
+            { label: fileName, value: fileName },
+          ]);
           this.translationFiles.update((files) => [
             ...files,
             {
               name: fileName,
-              data: this.flattenObject(JSON.parse(reader.result?.toString() ?? '{}')),
+              data: this.flattenObject(
+                JSON.parse(reader.result?.toString() ?? '{}')
+              ),
             },
           ]);
         }
@@ -108,7 +171,11 @@ export class AppComponent {
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
         const newKey = parentKey ? `${parentKey}.${key}` : key;
-        if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+        if (
+          typeof obj[key] === 'object' &&
+          obj[key] !== null &&
+          !Array.isArray(obj[key])
+        ) {
           this.flattenObject(obj[key], newKey, result);
         } else {
           result[newKey] = obj[key];
@@ -120,7 +187,7 @@ export class AppComponent {
 
   unflattenObject(flattened: Record<string, any>): Record<string, any> {
     const result: Record<string, any> = {};
-  
+
     for (const flatKey in flattened) {
       if (flattened.hasOwnProperty(flatKey)) {
         const keys = flatKey.split('.');
@@ -134,7 +201,7 @@ export class AppComponent {
         }, result);
       }
     }
-  
+
     return result;
   }
 
@@ -144,7 +211,7 @@ export class AppComponent {
 
   calculateLabels(files: TranslationFile[]): Record<string, string[]> {
     const result: Record<string, string[]> = {};
-  
+
     for (const file of files) {
       for (const key in file.data) {
         if (file.data.hasOwnProperty(key)) {
@@ -155,12 +222,14 @@ export class AppComponent {
         }
       }
     }
-  
+
     return result;
   }
 
   getTranslationModel(language: string, label: string) {
-    return this.translationFiles().find((file) => file.name === language)?.data[label];
+    return this.translationFiles().find((file) => file.name === language)?.data[
+      label
+    ];
   }
 
   updateTranslationModel(language: string, label: string, value: string) {

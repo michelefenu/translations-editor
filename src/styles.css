@@ -10,7 +10,7 @@ html {
 
 body {
   margin: 0;
-  padding: 0;
+  padding: 28px;
   border: 0;
   background: light-dark(var(--p-surface-0), var(--p-surface-950));
 }
