@@ -41,7 +41,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'dist/apps/your-app-name/browser'  # Adjust this path based on your NX workspace structure
+          path: 'dist/translations-editor/browser'
           
       - name: Deploy to GitHub Pages
         id: deployment
