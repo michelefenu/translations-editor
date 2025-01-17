@@ -39,22 +39,31 @@ interface TranslationFile {
       (dragleave)="onDragLeave($event)"
       (drop)="onDrop($event)"
     >
-      Drop translation files here
+      <div class="text-gray-500">
+        Drop translation files here
+        <div class="text-gray-500">
+          or
+          <input #fileInput type="file" [hidden]="true" multiple (change)="uploadFile($event)">
+          <button pButton size="small" type="button" (click)="fileInput.click()" severity="secondary">
+            Upload
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="flex gap-2 items-center my-4 justify-between">
       <div class="flex gap-2 items-center">
         @if (languageOptions.length > 0) {
-        <label for="language">Default Language:</label>
+        <span>Default Language</span>
         <p-selectbutton
-          id="language"
+          input="language"
           name="language"
           [options]="languageOptions"
           [(ngModel)]="defaultLanguage"
           optionLabel="label"
           optionValue="value"
-          aria-labelledby="basic"
         />
+
         } @else {
         <div>No files uploaded</div>
         }
@@ -76,7 +85,8 @@ interface TranslationFile {
         <p-accordion-header>
           <div class="flex flex-col w-full">
             <div class="text-gray-900 flex items-center justify-between pe-10">
-              <div>{{ getTranslationModel(defaultLanguage, label[0]) }}</div>
+              @let defaultTranslation = getTranslationModel(defaultLanguage, label[0]);
+              <div>{{ defaultTranslation || '[no translation found in default language]' }}</div>
               <div class="mt-6">
                 @for (language of label[1]; track language) {
                 <p-badge
@@ -102,7 +112,7 @@ interface TranslationFile {
         <p-accordion-content>
           @defer(on viewport) {
           <div class="flex items-center">
-            <div class="w-10">
+            <div class="min-w-10">
               <p-badge
                 [value]="language | uppercase"
                 class="me-2"
@@ -141,7 +151,7 @@ interface TranslationFile {
         transition: background-color 0.3s;
       }
       .drag-drop-area.drag-over {
-        background-color: #f0f0f0; /* Change to desired color */
+        background-color: #f0f0f0;
       }
     `,
   ],
@@ -150,12 +160,14 @@ export class AppComponent implements OnInit {
   translationFiles = signal<TranslationFile[]>([]);
   labels = signal<{ language: string; label: string }[]>([]);
 
-  defaultLanguage = 'en';
+  defaultLanguage = '';
   languageOptions: { label: string; value: string }[] = [];
 
   isDragOver = false;
 
   private calculateLabelsCache = new Map<string, Record<string, string[]>>();
+  private translationMap = new Map<string, Record<string, string>>();
+  private translationModelCache = new Map<string, string>();
 
   constructor() {
     effect(() => {
@@ -167,7 +179,11 @@ export class AppComponent implements OnInit {
         label: file.name,
         value: file.name,
       }));
-      console.log(this.translationFiles());
+
+      this.translationMap.clear();
+      this.translationFiles().forEach((file) => {
+        this.translationMap.set(file.name, file.data);
+      });
     });
   }
 
@@ -176,46 +192,63 @@ export class AppComponent implements OnInit {
     if (files) {
       this.translationFiles.set(JSON.parse(files));
     }
+
+    if (this.defaultLanguage === '') {
+      this.defaultLanguage = this.translationFiles()[0]?.name || '';
+    }
   }
 
   uploadFile(event: any) {
-    console.log('Loading files');
-    for (const file of event.target.files) {
-      const reader = new FileReader();
-      reader.onloadend = (e) => {
-        const fileName = file.name.replace('.json', '');
-        if (this.translationFiles().find((f) => f.name === fileName)) {
-          this.translationFiles.update((files) =>
-            files.map((f) =>
-              f.name === fileName
-                ? {
-                    ...f,
-                    data: this.flattenObject(
-                      JSON.parse(reader.result?.toString() ?? '{}')
-                    ),
-                  }
-                : f
-            )
-          );
-        } else {
-          this.languageOptions = [
-            ...this.languageOptions,
-            { label: fileName, value: fileName },
-          ];
-          this.translationFiles.update((files) => [
-            ...files,
-            {
-              name: fileName,
-              data: this.flattenObject(
-                JSON.parse(reader.result?.toString() ?? '{}')
-              ),
-            },
-          ]);
-        }
-      };
-      reader.readAsText(file);
+    const files = Array.from(event.target.files);
+    Promise.all(
+      files.map((file:any) => {
+        return new Promise<TranslationFile>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const fileName = file.name.replace('.json', '');
+            const newFileData = this.flattenObject(
+              JSON.parse(reader.result?.toString() ?? '{}')
+            );
+            resolve({ name: fileName, data: newFileData });
+          };
+          reader.readAsText(file);
+        });
+      })
+    ).then((newFiles) => {
+      this.translationFiles.update((existingFiles) => {
+        const updatedFiles = [...existingFiles];
+        
+        // Process all new files at once
+        newFiles.forEach((newFile) => {
+          const existingIndex = updatedFiles.findIndex(f => f.name === newFile.name);
+          if (existingIndex !== -1) {
+            updatedFiles[existingIndex] = newFile;
+          } else {
+            updatedFiles.push(newFile);
+          }
+        });
+
+        // Update missing keys across all files in a single pass
+        const allKeys = new Set<string>();
+        updatedFiles.forEach(file => {
+          Object.keys(file.data).forEach(key => allKeys.add(key));
+        });
+
+        updatedFiles.forEach(file => {
+          allKeys.forEach(key => {
+            if (!file.data.hasOwnProperty(key)) {
+              file.data[key] = '';
+            }
+          });
+        });
+
+        return updatedFiles;
+      });
+    });
+
+    if (this.defaultLanguage === '') {
+      this.defaultLanguage = this.translationFiles()[0].name;
     }
-    console.log('Files loaded');
   }
 
   onDragOver(event: DragEvent) {
@@ -287,7 +320,6 @@ export class AppComponent implements OnInit {
       return this.calculateLabelsCache.get(cacheKey)!;
     }
 
-    console.log(files);
     const result: Record<string, string[]> = {};
 
     for (const file of files) {
@@ -306,16 +338,24 @@ export class AppComponent implements OnInit {
   }
 
   getTranslationModel(language: string, label: string) {
-    return this.translationFiles().find((file) => file.name === language)?.data[
-      label
-    ];
+    const cacheKey = `${language}:${label}`;
+    if (this.translationModelCache.has(cacheKey)) {
+      return this.translationModelCache.get(cacheKey);
+    }
+    
+    const result = this.translationMap.get(language)?.[label];
+    this.translationModelCache.set(cacheKey, result || '');
+    return result;
   }
 
   updateTranslationModel(language: string, label: string, value: string) {
-    console.log(language, label, value);
-    const file = this.translationFiles().find((file) => file.name === language);
-    if (file) {
-      file.data[label] = value;
+    const files = this.translationFiles();
+    const fileIndex = files.findIndex((file) => file.name === language);
+    if (fileIndex !== -1) {
+      files[fileIndex].data[label] = value;
+      this.translationFiles.set([...files]);
+      // Clear cache when updating translations
+      this.translationModelCache.clear();
     }
   }
 
@@ -333,6 +373,7 @@ export class AppComponent implements OnInit {
     if (window.confirm('Are you sure you want to reset?')) {
       this.translationFiles.set([]);
     }
+    this.defaultLanguage = '';
   }
 
   download(content: string, fileName: string, contentType: string) {
