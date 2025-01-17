@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, effect, OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 import { CommonModule, UpperCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -21,7 +27,7 @@ interface TranslationFile {
     SelectButtonModule,
     AccordionModule,
     BadgeModule,
-    UpperCasePipe
+    UpperCasePipe,
   ],
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -54,8 +60,12 @@ interface TranslationFile {
         }
       </div>
       <div>
-        <button pButton type="button" (click)="save()" class="me-2">EXPORT</button>
-        <button pButton type="button" (click)="reset()" severity="danger">RESET</button>
+        <button pButton type="button" (click)="save()" class="me-2">
+          EXPORT
+        </button>
+        <button pButton type="button" (click)="reset()" severity="danger">
+          RESET
+        </button>
       </div>
     </div>
     @for (label of objectToKeyValueArray(calculateLabels(translationFiles()));
@@ -66,7 +76,7 @@ interface TranslationFile {
         <p-accordion-header>
           <div class="flex flex-col w-full">
             <div class="text-gray-900 flex items-center justify-between pe-10">
-              <div>{{ getTranslationModel(defaultLanguage, label[0])  }}</div>
+              <div>{{ getTranslationModel(defaultLanguage, label[0]) }}</div>
               <div class="mt-6">
                 @for (language of label[1]; track language) {
                 <p-badge
@@ -93,7 +103,13 @@ interface TranslationFile {
           @defer(on viewport) {
           <div class="flex items-center">
             <div class="w-10">
-              <p-badge [value]="language | uppercase" class="me-2" [severity]="getTranslationModel(language, label[0]) ? 'success' : 'danger'" />
+              <p-badge
+                [value]="language | uppercase"
+                class="me-2"
+                [severity]="
+                  getTranslationModel(language, label[0]) ? 'success' : 'danger'
+                "
+              />
             </div>
             <input
               pInputText
@@ -139,10 +155,18 @@ export class AppComponent implements OnInit {
 
   isDragOver = false;
 
+  private calculateLabelsCache = new Map<string, Record<string, string[]>>();
+
   constructor() {
     effect(() => {
-      localStorage.setItem('translationFiles', JSON.stringify(this.translationFiles()));
-      this.languageOptions = this.translationFiles().map((file) => ({ label: file.name, value: file.name }));
+      localStorage.setItem(
+        'translationFiles',
+        JSON.stringify(this.translationFiles())
+      );
+      this.languageOptions = this.translationFiles().map((file) => ({
+        label: file.name,
+        value: file.name,
+      }));
       console.log(this.translationFiles());
     });
   }
@@ -174,7 +198,10 @@ export class AppComponent implements OnInit {
             )
           );
         } else {
-          this.languageOptions = [...this.languageOptions, { label: fileName, value: fileName }];
+          this.languageOptions = [
+            ...this.languageOptions,
+            { label: fileName, value: fileName },
+          ];
           this.translationFiles.update((files) => [
             ...files,
             {
@@ -189,7 +216,6 @@ export class AppComponent implements OnInit {
       reader.readAsText(file);
     }
     console.log('Files loaded');
-
   }
 
   onDragOver(event: DragEvent) {
@@ -256,6 +282,12 @@ export class AppComponent implements OnInit {
   }
 
   calculateLabels(files: TranslationFile[]): Record<string, string[]> {
+    const cacheKey = JSON.stringify(files);
+    if (this.calculateLabelsCache.has(cacheKey)) {
+      return this.calculateLabelsCache.get(cacheKey)!;
+    }
+
+    console.log(files);
     const result: Record<string, string[]> = {};
 
     for (const file of files) {
@@ -269,6 +301,7 @@ export class AppComponent implements OnInit {
       }
     }
 
+    this.calculateLabelsCache.set(cacheKey, result);
     return result;
   }
 
@@ -288,7 +321,11 @@ export class AppComponent implements OnInit {
 
   save() {
     this.translationFiles().forEach((file) => {
-      this.download(JSON.stringify(file.data), file.name, 'application/json');
+      this.download(
+        JSON.stringify(this.unflattenObject(file.data)),
+        file.name,
+        'application/json'
+      );
     });
   }
 
@@ -299,10 +336,10 @@ export class AppComponent implements OnInit {
   }
 
   download(content: string, fileName: string, contentType: string) {
-    var a = document.createElement("a");
-    var file = new Blob([content], {type: contentType});
+    const a = document.createElement('a');
+    const file = new Blob([content], { type: contentType });
     a.href = URL.createObjectURL(file);
     a.download = fileName;
     a.click();
-}
+  }
 }
