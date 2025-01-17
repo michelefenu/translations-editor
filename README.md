@@ -1,6 +1,6 @@
 # JSON Translation Manager
 
-A web application for managing and editing multi-language translation files with a user-friendly interface. Built with Angular 17+ and PrimeNG components.
+A web application for managing and editing multi-language translation files with a user-friendly interface. 
 
 ## Features
 
@@ -9,9 +9,13 @@ A web application for managing and editing multi-language translation files with
 - 🔍 Visual indicators for missing translations
 - 🌐 Support for nested translation keys
 - 💾 Auto-save to localStorage
-- ⚡ Lazy-loaded content with Angular defer
 - 📦 Export updated translations as JSON files
-- 🎯 Change detection optimization with OnPush strategy
+
+## How to use
+
+The application works by uploading JSON files and then editing the translations. At the moment no validation is done on the JSON files, so it's up to the user to ensure the JSON is valid.
+
+I recommend naming the JSON files with the appropriate language code, such as `it.json` for Italian, `de.json` for German, etc.
 
 ## Tech Stack
 

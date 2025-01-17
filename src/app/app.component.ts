@@ -125,7 +125,7 @@ interface TranslationFile {
               pInputText
               type="text"
               #f
-              class="w-[500px]"
+              class="w-full"
               [value]="getTranslationModel(language, label[0])"
               (change)="updateTranslationModel(language, label[0], f.value)"
             />
