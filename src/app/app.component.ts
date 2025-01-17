@@ -84,7 +84,7 @@ interface TranslationFile {
       <p-accordion-panel [value]="label[0]">
         <p-accordion-header>
           <div class="flex flex-col w-full">
-            <div class="text-gray-900 flex items-center justify-between pe-10">
+            <div class="text-gray-900 dark:text-white flex items-center justify-between pe-10">
               @let defaultTranslation = getTranslationModel(defaultLanguage, label[0]);
               <div>{{ defaultTranslation || '[no translation found in default language]' }}</div>
               <div class="mt-6">
@@ -244,11 +244,9 @@ export class AppComponent implements OnInit {
 
         return updatedFiles;
       });
+    }).then(() => {
+      this.defaultLanguage = this.translationFiles()[0]?.name || '';
     });
-
-    if (this.defaultLanguage === '') {
-      this.defaultLanguage = this.translationFiles()[0].name;
-    }
   }
 
   onDragOver(event: DragEvent) {
